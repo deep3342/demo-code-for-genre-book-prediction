@@ -1,0 +1,90 @@
+pip install pandas numpy nltk scikit-learn 
+
+import pandas as pd
+import numpy as np
+import nltk
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.preprocessing import LabelEncoder
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import string
+import re
+
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
+nltk.download('punkt_tab') # Added this line to download punkt_tab
+
+# Sample data (replace with your actual dataset)
+data = {
+    'title': ['The Dark Knight', 'A Brief History of Time', 'Harry Potter and the Sorcerer\'s Stone', None, 'Dune'],
+    'description': [
+        'A thrilling & dark story of revenge, set in a dystopian future!! #scifi 🚀👽',
+        'A landmark book on cosmology and the universe.',
+        'A young wizard embarks on a magical journey to stop a dark wizard.',
+        np.nan,
+        'Set in a desert world, a young nobleman must navigate a political war.'
+    ],
+    'genre': ['Action', 'Non-Fiction', 'Fantasy', 'Sci-Fi', 'Sci-Fi']
+}
+
+# Convert to DataFrame
+df = pd.DataFrame(data)
+
+# 1. Handle Missing Values
+df.dropna(subset=['title', 'description', 'genre'], inplace=True)
+
+# 2. Text Normalization (for descriptions and titles)
+def clean_text(text):
+    # Lowercase text
+    text = text.lower()
+
+    # Remove punctuation and special characters
+    text = re.sub(r'[^\w\s]', '', text)
+
+    # Remove numbers
+    text = re.sub(r'\d+', '', text)
+
+    # Tokenize text
+    words = nltk.word_tokenize(text)
+
+    # Remove stopwords
+    stop_words = set(stopwords.words('english'))
+    words = [word for word in words if word not in stop_words]
+
+    # Lemmatize words (e.g., "running" → "run")
+    lemmatizer = WordNetLemmatizer()
+    words = [lemmatizer.lemmatize(word) for word in words]
+
+    # Join words back into a cleaned sentence
+    return ' '.join(words)
+
+# Clean titles and descriptions
+df['cleaned_description'] = df['description'].apply(clean_text)
+df['cleaned_title'] = df['title'].apply(clean_text)
+
+# 3. Standardize Genre Labels
+# Normalize genre names (e.g., "Sci-Fi" to "Science Fiction")
+df['cleaned_genre'] = df['genre'].str.lower().replace({
+    'sci-fi': 'science fiction',
+    'sci fi': 'science fiction'
+})
+
+# 4. Encode Genre Labels (using LabelEncoder)
+label_encoder = LabelEncoder()
+df['genre_encoded'] = label_encoder.fit_transform(df['cleaned_genre'])
+
+# 5. Feature Extraction using TF-IDF (for descriptions)
+tfidf_vectorizer = TfidfVectorizer(max_features=500)  # Limit to top 500 features
+X = tfidf_vectorizer.fit_transform(df['cleaned_description']).toarray()
+
+# 6. Split Data into Train and Test
+X_train, X_test, y_train, y_test = train_test_split(X, df['genre_encoded'], test_size=0.2, random_state=42)
+
+# Output cleaned data
+print("Cleaned Data:")
+print(df[['title', 'cleaned_description', 'cleaned_genre', 'genre_encoded']])
+
+# You can now use X_train, X_test for training a model like Logistic Regression, SVM, etc.
