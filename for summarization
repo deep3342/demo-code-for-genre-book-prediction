@@ -1,0 +1,68 @@
+# Install transformers if not already installed
+# pip install transformers torch scikit-learn
+#Genre Prediction + Text Summarization
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from transformers import pipeline
+
+# -------------------------------
+# Part 1: Genre Prediction
+# -------------------------------
+
+# Example dataset (replace with a larger dataset later)
+data = {
+    "text": [
+        "A love story between two people in Paris", 
+        "A detective solves a mysterious murder case",
+        "Spaceships battle in an intergalactic war",
+        "A young wizard fights against dark magic",
+        "A stand-up comedian struggles with family life"
+    ],
+    "genre": [
+        "Romance", 
+        "Mystery", 
+        "Sci-Fi", 
+        "Fantasy", 
+        "Comedy"
+    ]
+}
+
+df = pd.DataFrame(data)
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(df["text"], df["genre"], test_size=0.2, random_state=42)
+
+# Convert text into TF-IDF features
+vectorizer = TfidfVectorizer(stop_words="english")
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# Train Naive Bayes classifier
+model = MultinomialNB()
+model.fit(X_train_tfidf, y_train)
+
+# -------------------------------
+# Part 2: Summarization (using Hugging Face pipeline)
+# -------------------------------
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+
+# -------------------------------
+# Test with new input
+# -------------------------------
+new_text = """In a distant galaxy, humans are trying to survive while battling powerful alien races. 
+The story follows a brave commander who risks everything to save humanity from extinction. 
+Meanwhile, political tensions rise within the fleet, creating chaos and betrayal."""
+
+# Predict Genre
+new_text_tfidf = vectorizer.transform([new_text])
+predicted_genre = model.predict(new_text_tfidf)[0]
+
+# Summarize
+summary = summarizer(new_text, max_length=40, min_length=10, do_sample=False)[0]['summary_text']
+
+# Results
+print("Original Text:\n", new_text)
+print("\nPredicted Genre:", predicted_genre)
+print("\nSummary:\n", summary)
